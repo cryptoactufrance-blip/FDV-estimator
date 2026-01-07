@@ -55,13 +55,13 @@
                   Revenu Annuel <span id="sort-revenue" class="text-xs">↕️</span>
                 </th>
                 <th class="px-3 py-2 text-right cursor-pointer hover:bg-indigo-700" onclick="sortTable('fdv')">
-                  FDV <span id="sort-fdv" class="text-xs">↓</span>
+                  FDV <span id="sort-fdv" class="text-xs">↕️</span>
                 </th>
                 <th class="px-3 py-2 text-right cursor-pointer hover:bg-indigo-700" onclick="sortTable('ratio')">
                   Ratio <span id="sort-ratio" class="text-xs">↕️</span>
                 </th>
                 <th class="px-3 py-2 text-center cursor-pointer hover:bg-indigo-700" onclick="sortTable('hasToken')">
-                  Statut <span id="sort-hasToken" class="text-xs">↕️</span>
+                  Statut <span id="sort-hasToken" class="text-xs">↓</span>
                 </th>
               </tr>
             </thead>
@@ -91,7 +91,7 @@
 
   <script>
     let allProjects = [];
-    let currentSort = { column: 'fdv', direction: 'desc' };
+    let currentSort = { column: 'hasToken', direction: 'desc' };
     
     const projectsConfig = [
       { 
@@ -239,7 +239,14 @@
           });
         }
         
-        projects.sort((a, b) => (b.fdv || 0) - (a.fdv || 0));
+        projects.sort((a, b) => {
+          // Trier d'abord par statut (token live en premier)
+          if (a.hasToken !== b.hasToken) {
+            return b.hasToken ? 1 : -1;
+          }
+          // Ensuite par FDV décroissante
+          return (b.fdv || 0) - (a.fdv || 0);
+        });
         
         allProjects = projects;
         
