@@ -401,7 +401,7 @@
       
       // Préparer les données pour le scatter plot
       const scatterData = projects
-        .filter(p => p.revenue > 0 && p.fdv > 0)
+        .filter(p => p.fdv !== null && p.fdv !== undefined && p.revenue !== null && p.revenue !== undefined)
         .map(p => ({
           x: p.revenue,
           y: p.fdv,
@@ -425,12 +425,21 @@
       const intercept = (sumY - slope * sumX) / n;
       
       // Créer les points de la ligne de régression
-      const minX = Math.min(...scatterData.map(p => p.x));
-      const maxX = Math.max(...scatterData.map(p => p.x));
+      const allX = scatterData.map(p => p.x);
+      const allY = scatterData.map(p => p.y);
+      const minX = Math.min(...allX, 0);
+      const maxX = Math.max(...allX);
+      const minY = Math.min(...allY, 0);
+      const maxY = Math.max(...allY);
+      
+      // Étendre un peu les limites pour voir toute la droite
+      const xRange = maxX - minX;
+      const extendedMinX = minX - xRange * 0.1;
+      const extendedMaxX = maxX + xRange * 0.1;
       
       const regressionLine = [
-        { x: minX, y: slope * minX + intercept },
-        { x: maxX, y: slope * maxX + intercept }
+        { x: extendedMinX, y: slope * extendedMinX + intercept },
+        { x: extendedMaxX, y: slope * extendedMaxX + intercept }
       ];
       
       // Créer le graphique
@@ -466,7 +475,13 @@
               fill: false,
               pointRadius: 0,
               pointHoverRadius: 0,
-              tension: 0
+              hitRadius: 0,
+              hoverBorderWidth: 0,
+              tension: 0,
+              interaction: {
+                intersect: false,
+                mode: null
+              }
             }
           ]
         },
@@ -474,9 +489,8 @@
           responsive: true,
           maintainAspectRatio: true,
           interaction: {
-            mode: 'nearest',
-            intersect: false,
-            axis: 'xy'
+            mode: 'point',
+            intersect: true
           },
           plugins: {
             legend: {
@@ -492,23 +506,21 @@
             },
             tooltip: {
               enabled: true,
+              filter: function(tooltipItem) {
+                // Ne pas afficher le tooltip pour la droite de régression
+                return tooltipItem.datasetIndex !== 2;
+              },
               callbacks: {
                 title: function(context) {
-                  if (context[0].dataset.label === 'Droite de régression (moyenne)') {
-                    return 'Ligne de régression';
-                  }
                   return context[0].raw.label || '';
                 },
                 label: function(context) {
-                  if (context.dataset.label === 'Droite de régression (moyenne)') {
-                    return 'Tendance moyenne du marché';
-                  }
                   const x = context.parsed.x;
                   const y = context.parsed.y;
                   return [
                     `Revenu annuel: ${formatCurrency(x)}`,
                     `FDV: ${formatCurrency(y)}`,
-                    `Ratio: ${(y/x).toFixed(1)}x`
+                    `Ratio: ${x !== 0 ? (y/x).toFixed(1) + 'x' : 'N/A'}`
                   ];
                 }
               }
@@ -551,7 +563,8 @@
               grid: {
                 display: true,
                 drawBorder: true
-              }
+              },
+              beginAtZero: false
             },
             y: {
               type: 'linear',
@@ -571,7 +584,8 @@
               grid: {
                 display: true,
                 drawBorder: true
-              }
+              },
+              beginAtZero: false
             }
           }
         },
