@@ -47,9 +47,9 @@
           </button>
         </div>
         <div class="mb-8 bg-gray-50 p-4 rounded-lg">
-          <canvas id="scatterChart" style="max-height: 500px;"></canvas>
+          <canvas id="scatterChart" style="max-height: 500px; cursor: grab;"></canvas>
           <p class="text-xs text-gray-600 mt-2 text-center">
-            💡 Utilisez la molette pour zoomer, clic + glisser pour déplacer
+            💡 Molette : zoomer | Cliquer + glisser : déplacer
           </p>
         </div>
         
@@ -194,11 +194,19 @@
     }
 
     function formatCurrency(value) {
-      if (!value) return 'N/A';
-      if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-      if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
-      if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`;
-      return `$${value.toFixed(2)}`;
+      if (!value && value !== 0) return 'N/A';
+      
+      const absValue = Math.abs(value);
+      const sign = value < 0 ? '-' : '';
+      
+      if (absValue >= 1e9) {
+        return `${sign}${(absValue / 1e9).toFixed(2)}B`;
+      } else if (absValue >= 1e6) {
+        return `${sign}${(absValue / 1e6).toFixed(2)}M`;
+      } else if (absValue >= 1e3) {
+        return `${sign}${(absValue / 1e3).toFixed(2)}K`;
+      }
+      return `${sign}${absValue.toFixed(2)}`;
     }
 
     async function fetchData() {
@@ -584,11 +592,15 @@
                 pinch: {
                   enabled: true
                 },
-                mode: 'xy'
+                mode: 'xy',
+                drag: {
+                  enabled: false
+                }
               },
               pan: {
                 enabled: true,
-                mode: 'xy'
+                mode: 'xy',
+                modifierKey: null
               },
               limits: {
                 x: { min: 'original', max: 'original' },
@@ -660,6 +672,18 @@
           }
         },
         plugins: [ChartDataLabels]
+      });
+      
+      // Ajouter les événements pour changer le curseur lors du pan
+      const canvas = ctx.canvas;
+      canvas.addEventListener('mousedown', function() {
+        canvas.style.cursor = 'grabbing';
+      });
+      canvas.addEventListener('mouseup', function() {
+        canvas.style.cursor = 'grab';
+      });
+      canvas.addEventListener('mouseleave', function() {
+        canvas.style.cursor = 'grab';
       });
     }
 
