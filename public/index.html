@@ -1,4 +1,20 @@
-import React, { useState, useEffect } from 'react';
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estimateur FDV Crypto</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/recharts@2.5.0/dist/Recharts.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+  import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 const CryptoFDVEstimator = () => {
@@ -364,3 +380,24 @@ const CryptoFDVEstimator = () => {
 };
 
 export default CryptoFDVEstimator;
+    
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot(container);
+    root.render(<CryptoFDVEstimator />);
+  </script>
+</body>
+</html>
+```
+
+## 📂 Structure finale
+
+Votre dépôt doit ressembler à ça :
+```
+crypto-fdv-estimator/
+├── api/
+│   ├── fees.js
+│   └── coingecko.js
+├── index.html
+├── package.json
+├── vercel.json
+└── README.md
