@@ -1,0 +1,11 @@
+{
+  "name": "crypto-fdv-estimator",
+  "version": "1.0.0",
+  "description": "Estimateur de FDV pour tokens crypto basé sur les revenus",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build needed for static site'"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
