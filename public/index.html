@@ -42,13 +42,27 @@
           <table class="w-full border-collapse text-sm">
             <thead>
               <tr class="bg-indigo-600 text-white">
-                <th class="px-3 py-2 text-left">Projet</th>
-                <th class="px-3 py-2 text-right">Fees 24h</th>
-                <th class="px-3 py-2 text-right">Moy. 7j</th>
-                <th class="px-3 py-2 text-right">Revenu Annuel</th>
-                <th class="px-3 py-2 text-right">FDV</th>
-                <th class="px-3 py-2 text-right">Ratio</th>
-                <th class="px-3 py-2 text-center">Statut</th>
+                <th class="px-3 py-2 text-left cursor-pointer hover:bg-indigo-700" onclick="sortTable('name')">
+                  Projet <span id="sort-name" class="text-xs">↕️</span>
+                </th>
+                <th class="px-3 py-2 text-right cursor-pointer hover:bg-indigo-700" onclick="sortTable('daily24hFees')">
+                  Fees 24h <span id="sort-daily24hFees" class="text-xs">↕️</span>
+                </th>
+                <th class="px-3 py-2 text-right cursor-pointer hover:bg-indigo-700" onclick="sortTable('avgDailyFees')">
+                  Moy. 7j <span id="sort-avgDailyFees" class="text-xs">↕️</span>
+                </th>
+                <th class="px-3 py-2 text-right cursor-pointer hover:bg-indigo-700" onclick="sortTable('revenue')">
+                  Revenu Annuel <span id="sort-revenue" class="text-xs">↕️</span>
+                </th>
+                <th class="px-3 py-2 text-right cursor-pointer hover:bg-indigo-700" onclick="sortTable('fdv')">
+                  FDV <span id="sort-fdv" class="text-xs">↓</span>
+                </th>
+                <th class="px-3 py-2 text-right cursor-pointer hover:bg-indigo-700" onclick="sortTable('ratio')">
+                  Ratio <span id="sort-ratio" class="text-xs">↕️</span>
+                </th>
+                <th class="px-3 py-2 text-center cursor-pointer hover:bg-indigo-700" onclick="sortTable('hasToken')">
+                  Statut <span id="sort-hasToken" class="text-xs">↕️</span>
+                </th>
               </tr>
             </thead>
             <tbody id="tableBody"></tbody>
@@ -76,6 +90,9 @@
   </div>
 
   <script>
+    let allProjects = [];
+    let currentSort = { column: 'fdv', direction: 'desc' };
+    
     const projectsConfig = [
       { 
         name: 'Hyperliquid', 
@@ -224,11 +241,13 @@
         
         projects.sort((a, b) => (b.fdv || 0) - (a.fdv || 0));
         
+        allProjects = projects;
+        
         // Afficher les graphiques
-        renderCharts(projects);
+        renderCharts(allProjects);
         
         // Afficher le tableau
-        renderTable(projects);
+        renderTable(allProjects);
         
         // Mettre à jour la date
         document.getElementById('lastUpdate').textContent = 
@@ -293,6 +312,87 @@
         
         chartsDiv.appendChild(projectDiv);
       });
+    }
+
+    function sortTable(column) {
+      // Inverser la direction si on clique sur la même colonne
+      if (currentSort.column === column) {
+        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+      } else {
+        currentSort.column = column;
+        currentSort.direction = 'desc';
+      }
+      
+      // Trier les projets
+      const sorted = [...allProjects].sort((a, b) => {
+        let valA, valB;
+        
+        switch(column) {
+          case 'name':
+            valA = a.name.toLowerCase();
+            valB = b.name.toLowerCase();
+            return currentSort.direction === 'asc' 
+              ? valA.localeCompare(valB)
+              : valB.localeCompare(valA);
+          
+          case 'daily24hFees':
+            valA = a.daily24hFees || 0;
+            valB = b.daily24hFees || 0;
+            break;
+          
+          case 'avgDailyFees':
+            valA = a.avgDailyFees || 0;
+            valB = b.avgDailyFees || 0;
+            break;
+          
+          case 'revenue':
+            valA = a.revenue || 0;
+            valB = b.revenue || 0;
+            break;
+          
+          case 'fdv':
+            valA = a.fdv || 0;
+            valB = b.fdv || 0;
+            break;
+          
+          case 'ratio':
+            valA = (a.fdv && a.revenue) ? a.fdv / a.revenue : 0;
+            valB = (b.fdv && b.revenue) ? b.fdv / b.revenue : 0;
+            break;
+          
+          case 'hasToken':
+            valA = a.hasToken ? 1 : 0;
+            valB = b.hasToken ? 1 : 0;
+            break;
+          
+          default:
+            return 0;
+        }
+        
+        return currentSort.direction === 'asc' ? valA - valB : valB - valA;
+      });
+      
+      // Mettre à jour les indicateurs de tri
+      updateSortIndicators();
+      
+      // Réafficher le tableau
+      renderTable(sorted);
+    }
+    
+    function updateSortIndicators() {
+      // Réinitialiser tous les indicateurs
+      ['name', 'daily24hFees', 'avgDailyFees', 'revenue', 'fdv', 'ratio', 'hasToken'].forEach(col => {
+        const indicator = document.getElementById(`sort-${col}`);
+        if (indicator) {
+          indicator.textContent = '↕️';
+        }
+      });
+      
+      // Mettre à jour l'indicateur de la colonne active
+      const activeIndicator = document.getElementById(`sort-${currentSort.column}`);
+      if (activeIndicator) {
+        activeIndicator.textContent = currentSort.direction === 'asc' ? '↑' : '↓';
+      }
     }
 
     function renderTable(projects) {
