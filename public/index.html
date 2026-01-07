@@ -4,369 +4,290 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Estimateur FDV Crypto</title>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.5.0/Recharts.js"></script>
+  <style>
+    .bar {
+      transition: width 0.5s ease;
+    }
+  </style>
 </head>
-<body>
-  <div id="root"></div>
-  
-  <script type="text/babel">
-    const { useState, useEffect } = React;
-    const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } = Recharts;
-
-    const CryptoFDVEstimator = () => {
-      const [projects, setProjects] = useState([]);
-      const [loading, setLoading] = useState(false);
-      const [error, setError] = useState(null);
-      const [lastUpdate, setLastUpdate] = useState(null);
-      const [debugInfo, setDebugInfo] = useState([]);
-
-      const projectsConfig = [
-        { 
-          name: 'Hyperliquid', 
-          hasToken: true, 
-          defillamaSlug: 'hyperliquid',
-          coingeckoId: 'hyperliquid'
-        },
-        { 
-          name: 'Extended', 
-          hasToken: false, 
-          defillamaSlug: 'extended-protocol',
-          coingeckoId: null
-        }
-      ];
-
-      const getApiBaseUrl = () => {
-        if (typeof window !== 'undefined') {
-          if (window.location.hostname.includes('vercel.app')) {
-            return window.location.origin;
-          }
-          if (window.location.hostname === 'localhost') {
-            return 'http://localhost:3000';
-          }
-        }
-        return '';
-      };
-
-      const fetchData = async () => {
-        setLoading(true);
-        setError(null);
-        const debug = [];
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+  <div class="max-w-6xl mx-auto p-8">
+    <div class="bg-white rounded-lg shadow-xl p-8">
+      <h1 class="text-3xl font-bold text-gray-800 mb-2">🚀 Estimateur FDV de Token Crypto</h1>
+      <p class="text-gray-600 mb-6">Estimation automatique via Vercel Edge Functions</p>
+      
+      <p id="lastUpdate" class="text-sm text-gray-500 mb-4"></p>
+      
+      <button 
+        id="refreshBtn" 
+        class="mb-6 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition"
+      >
+        🔄 Actualiser les données
+      </button>
+      
+      <div id="error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6"></div>
+      
+      <div id="loading" class="hidden text-center py-12">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+        <p class="mt-4 text-gray-600">Récupération des données...</p>
+      </div>
+      
+      <div id="content" class="hidden">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Comparaison Revenu vs FDV</h2>
+        <div id="charts" class="space-y-6 mb-8"></div>
         
-        try {
-          const results = [];
-          const apiBase = getApiBaseUrl();
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Données détaillées</h2>
+        <div class="overflow-x-auto mb-8">
+          <table class="w-full border-collapse text-sm">
+            <thead>
+              <tr class="bg-indigo-600 text-white">
+                <th class="px-3 py-2 text-left">Projet</th>
+                <th class="px-3 py-2 text-right">Fees 24h</th>
+                <th class="px-3 py-2 text-right">Revenu Annuel</th>
+                <th class="px-3 py-2 text-right">FDV</th>
+                <th class="px-3 py-2 text-right">Ratio</th>
+                <th class="px-3 py-2 text-center">Statut</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        
+        <div class="p-4 bg-blue-50 rounded-lg">
+          <h3 class="font-semibold text-gray-800 mb-2">💡 Comment ça marche ?</h3>
+          <ul class="text-sm text-gray-700 space-y-1">
+            <li>• Vercel Edge Functions : API backend qui contourne CORS</li>
+            <li>• DeFiLlama : Données de revenus en temps réel</li>
+            <li>• CoinGecko : FDV des tokens live</li>
+            <li>• Régression linéaire : Estimation automatique des FDV</li>
+          </ul>
+        </div>
+      </div>
+      
+      <details class="mt-6">
+        <summary class="cursor-pointer text-sm font-semibold text-gray-700 hover:text-gray-900">
+          🔍 Logs de debug
+        </summary>
+        <div id="debugLogs" class="mt-2 p-4 bg-gray-100 rounded text-xs font-mono overflow-x-auto max-h-96 overflow-y-auto"></div>
+      </details>
+    </div>
+  </div>
+
+  <script>
+    const projectsConfig = [
+      { 
+        name: 'Hyperliquid', 
+        hasToken: true, 
+        defillamaSlug: 'hyperliquid',
+        coingeckoId: 'hyperliquid'
+      },
+      { 
+        name: 'Extended', 
+        hasToken: false, 
+        defillamaSlug: 'extended-protocol',
+        coingeckoId: null
+      }
+    ];
+
+    let debugLogs = [];
+
+    function addLog(message) {
+      debugLogs.push(message);
+      const logsDiv = document.getElementById('debugLogs');
+      logsDiv.innerHTML = debugLogs.join('<br>');
+    }
+
+    function formatCurrency(value) {
+      if (!value) return 'N/A';
+      if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
+      if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
+      if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`;
+      return `$${value.toFixed(2)}`;
+    }
+
+    async function fetchData() {
+      const loadingDiv = document.getElementById('loading');
+      const contentDiv = document.getElementById('content');
+      const errorDiv = document.getElementById('error');
+      const refreshBtn = document.getElementById('refreshBtn');
+      
+      loadingDiv.classList.remove('hidden');
+      contentDiv.classList.add('hidden');
+      errorDiv.classList.add('hidden');
+      refreshBtn.disabled = true;
+      debugLogs = [];
+      
+      try {
+        const apiBase = window.location.origin;
+        addLog(`🌐 URL de base: ${apiBase}`);
+        addLog('---');
+        
+        const projects = [];
+        
+        for (const project of projectsConfig) {
+          addLog(`📊 Traitement de ${project.name}...`);
           
-          debug.push(`🌐 API Base URL: ${apiBase || 'même domaine'}`);
-          debug.push('---');
-          
-          for (const project of projectsConfig) {
-            try {
-              debug.push(`📊 Traitement de ${project.name}...`);
-              
-              const feesUrl = `${apiBase}/api/fees?protocol=${project.defillamaSlug}`;
-              debug.push(`Appel: ${feesUrl}`);
-              
-              const feesResponse = await fetch(feesUrl);
-              
-              if (!feesResponse.ok) {
-                debug.push(`❌ Erreur API fees: ${feesResponse.status}`);
-                const errorData = await feesResponse.json().catch(() => ({}));
-                debug.push(`Détails: ${JSON.stringify(errorData)}`);
-                continue;
-              }
-              
-              const feesData = await feesResponse.json();
-              debug.push(`✅ Fees récupérées: $${feesData.total24h?.toLocaleString() || 0}`);
-              
-              const dailyRevenue = feesData.total24h || 0;
-              const annualRevenue = dailyRevenue * 365;
-              
-              let fdv = null;
-              let estimated = false;
-              
-              if (project.hasToken && project.coingeckoId) {
-                try {
-                  const geckoUrl = `${apiBase}/api/coingecko?coinId=${project.coingeckoId}`;
-                  debug.push(`Appel: ${geckoUrl}`);
-                  
-                  const geckoResponse = await fetch(geckoUrl);
-                  
-                  if (geckoResponse.ok) {
-                    const geckoData = await geckoResponse.json();
-                    fdv = geckoData.fdv;
-                    debug.push(`✅ FDV récupérée: $${fdv?.toLocaleString() || 'N/A'}`);
-                  } else {
-                    debug.push(`⚠️ Erreur CoinGecko: ${geckoResponse.status}`);
-                  }
-                } catch (err) {
-                  debug.push(`⚠️ Erreur CoinGecko: ${err.message}`);
-                }
-              }
-              
-              results.push({
-                name: project.name,
-                revenue: annualRevenue,
-                fdv: fdv,
-                estimated: estimated,
-                hasToken: project.hasToken,
-                daily24hFees: dailyRevenue
-              });
-              
-              debug.push('---');
-            } catch (err) {
-              debug.push(`❌ Erreur pour ${project.name}: ${err.message}`);
-              debug.push('---');
+          try {
+            const feesUrl = `${apiBase}/api/fees?protocol=${project.defillamaSlug}`;
+            addLog(`Appel: ${feesUrl}`);
+            
+            const feesResponse = await fetch(feesUrl);
+            
+            if (!feesResponse.ok) {
+              addLog(`❌ Erreur ${feesResponse.status}`);
+              continue;
             }
-          }
-          
-          const projectsWithFDV = results.filter(p => p.fdv !== null && p.revenue > 0);
-          
-          if (projectsWithFDV.length > 0) {
-            const ratios = projectsWithFDV.map(p => p.fdv / p.revenue);
-            const avgRatio = ratios.reduce((a, b) => a + b, 0) / ratios.length;
             
-            debug.push(`📈 Ratio moyen FDV/Revenu: ${avgRatio.toFixed(2)}x`);
+            const feesData = await feesResponse.json();
+            addLog(`✅ Fees: $${feesData.total24h?.toLocaleString() || 0}`);
             
-            results.forEach(project => {
-              if (project.fdv === null && project.revenue > 0) {
-                project.fdv = project.revenue * avgRatio;
-                project.estimated = true;
-                debug.push(`🔮 FDV estimée pour ${project.name}: $${project.fdv.toLocaleString()}`);
+            const dailyRevenue = feesData.total24h || 0;
+            const annualRevenue = dailyRevenue * 365;
+            
+            let fdv = null;
+            
+            if (project.hasToken && project.coingeckoId) {
+              const geckoUrl = `${apiBase}/api/coingecko?coinId=${project.coingeckoId}`;
+              const geckoResponse = await fetch(geckoUrl);
+              
+              if (geckoResponse.ok) {
+                const geckoData = await geckoResponse.json();
+                fdv = geckoData.fdv;
+                addLog(`✅ FDV: $${fdv?.toLocaleString() || 'N/A'}`);
               }
+            }
+            
+            projects.push({
+              name: project.name,
+              revenue: annualRevenue,
+              fdv: fdv,
+              estimated: false,
+              hasToken: project.hasToken,
+              daily24hFees: dailyRevenue
             });
+            
+            addLog('---');
+          } catch (err) {
+            addLog(`❌ Erreur: ${err.message}`);
           }
-          
-          results.sort((a, b) => (b.fdv || 0) - (a.fdv || 0));
-          
-          setProjects(results);
-          setDebugInfo(debug);
-          setLastUpdate(new Date());
-          
-          if (results.length === 0) {
-            setError("Aucune donnée récupérée. Vérifiez les logs de debug.");
-          }
-        } catch (err) {
-          setError(`Erreur: ${err.message}`);
-          debug.push(`❌ Erreur fatale: ${err.message}`);
-          setDebugInfo(debug);
-        } finally {
-          setLoading(false);
         }
-      };
-
-      useEffect(() => {
-        fetchData();
-        const interval = setInterval(fetchData, 24 * 60 * 60 * 1000);
-        return () => clearInterval(interval);
-      }, []);
-
-      const formatCurrency = (value) => {
-        if (!value) return 'N/A';
-        if (value >= 1e9) {
-          return `$${(value / 1e9).toFixed(2)}B`;
-        } else if (value >= 1e6) {
-          return `$${(value / 1e6).toFixed(2)}M`;
-        } else if (value >= 1e3) {
-          return `$${(value / 1e3).toFixed(2)}K`;
+        
+        // Régression linéaire
+        const projectsWithFDV = projects.filter(p => p.fdv !== null && p.revenue > 0);
+        
+        if (projectsWithFDV.length > 0) {
+          const ratios = projectsWithFDV.map(p => p.fdv / p.revenue);
+          const avgRatio = ratios.reduce((a, b) => a + b, 0) / ratios.length;
+          
+          projects.forEach(project => {
+            if (project.fdv === null && project.revenue > 0) {
+              project.fdv = project.revenue * avgRatio;
+              project.estimated = true;
+            }
+          });
         }
-        return `$${value.toFixed(2)}`;
-      };
+        
+        projects.sort((a, b) => (b.fdv || 0) - (a.fdv || 0));
+        
+        // Afficher les graphiques
+        renderCharts(projects);
+        
+        // Afficher le tableau
+        renderTable(projects);
+        
+        // Mettre à jour la date
+        document.getElementById('lastUpdate').textContent = 
+          `Dernière mise à jour: ${new Date().toLocaleString('fr-FR')}`;
+        
+        contentDiv.classList.remove('hidden');
+        
+      } catch (err) {
+        errorDiv.textContent = `Erreur: ${err.message}`;
+        errorDiv.classList.remove('hidden');
+        addLog(`❌ Erreur fatale: ${err.message}`);
+      } finally {
+        loadingDiv.classList.add('hidden');
+        refreshBtn.disabled = false;
+      }
+    }
 
-      const chartData = projects.map(p => ({
-        name: p.name,
-        'Revenu Annuel': p.revenue / 1e6,
-        'FDV': p.fdv / 1e6,
-        estimated: p.estimated,
-        hasToken: p.hasToken
-      }));
-
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
-          <div className="max-w-6xl mx-auto">
-            <div className="bg-white rounded-lg shadow-xl p-6 md:p-8">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
-                    Estimateur FDV de Token Crypto
-                  </h1>
-                  <p className="text-gray-600">
-                    Estimation automatique via Vercel Edge Functions
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                    🤖 Mode Auto
-                  </span>
-                </div>
+    function renderCharts(projects) {
+      const chartsDiv = document.getElementById('charts');
+      chartsDiv.innerHTML = '';
+      
+      const maxValue = Math.max(...projects.map(p => Math.max(p.revenue || 0, p.fdv || 0)));
+      
+      projects.forEach(project => {
+        const projectDiv = document.createElement('div');
+        projectDiv.className = 'border-b pb-4';
+        
+        projectDiv.innerHTML = `
+          <div class="font-semibold text-gray-800 mb-2 flex justify-between items-center">
+            <span>${project.name}</span>
+            <span class="text-xs px-2 py-1 rounded ${project.hasToken ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+              ${project.hasToken ? '✓ Live' : '⏳ Estimé'}
+            </span>
+          </div>
+          <div class="space-y-2">
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-600">Revenu Annuel</span>
+                <span class="font-semibold text-green-600">${formatCurrency(project.revenue)}</span>
               </div>
-
-              {lastUpdate && (
-                <p className="text-sm text-gray-500 mb-4">
-                  Dernière mise à jour: {lastUpdate.toLocaleString('fr-FR')}
-                </p>
-              )}
-
-              <button
-                onClick={fetchData}
-                disabled={loading}
-                className="mb-6 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:bg-gray-400 transition"
-              >
-                {loading ? '⏳ Chargement...' : '🔄 Actualiser les données'}
-              </button>
-
-              {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-                  <strong>Erreur:</strong> {error}
-                  <p className="text-sm mt-2">
-                    💡 Vérifiez que les API Edge Functions sont bien déployées sur Vercel.
-                  </p>
-                </div>
-              )}
-
-              {loading ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Récupération des données...</p>
-                </div>
-              ) : (
-                <>
-                  {chartData.length > 0 ? (
-                    <>
-                      <div className="mb-8">
-                        <h2 className="text-xl font-bold text-gray-800 mb-4">
-                          Comparaison Revenu vs FDV
-                        </h2>
-                        <ResponsiveContainer width="100%" height={400}>
-                          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis 
-                              dataKey="name" 
-                              angle={-45}
-                              textAnchor="end"
-                              height={80}
-                            />
-                            <YAxis 
-                              label={{ value: 'Montant (Millions USD)', angle: -90, position: 'insideLeft' }}
-                            />
-                            <Tooltip 
-                              formatter={(value, name) => [`$${value.toFixed(2)}M`, name]}
-                            />
-                            <Legend />
-                            <Bar dataKey="Revenu Annuel" fill="#10b981" />
-                            <Bar dataKey="FDV" fill="#4f46e5">
-                              {chartData.map((entry, index) => (
-                                <Cell 
-                                  key={`cell-${index}`} 
-                                  fill={entry.estimated ? '#f59e0b' : '#4f46e5'}
-                                />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                        <div className="mt-4 text-sm text-gray-600 text-center space-y-1">
-                          <p>
-                            <span className="inline-block w-4 h-4 bg-green-500 mr-2"></span>
-                            Revenu Annuel
-                            <span className="inline-block w-4 h-4 bg-indigo-600 ml-4 mr-2"></span>
-                            FDV (projets live)
-                            <span className="inline-block w-4 h-4 bg-orange-500 ml-4 mr-2"></span>
-                            FDV estimée
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mb-8 overflow-x-auto">
-                        <h2 className="text-xl font-bold text-gray-800 mb-4">Données détaillées</h2>
-                        <table className="w-full border-collapse text-sm">
-                          <thead>
-                            <tr className="bg-indigo-600 text-white">
-                              <th className="px-3 py-2 text-left">Projet</th>
-                              <th className="px-3 py-2 text-right">Fees 24h</th>
-                              <th className="px-3 py-2 text-right">Revenu Annuel</th>
-                              <th className="px-3 py-2 text-right">FDV</th>
-                              <th className="px-3 py-2 text-right">Ratio</th>
-                              <th className="px-3 py-2 text-center">Statut</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {projects.map((project, index) => (
-                              <tr 
-                                key={project.name}
-                                className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}
-                              >
-                                <td className="px-3 py-2 font-medium">{project.name}</td>
-                                <td className="px-3 py-2 text-right">{formatCurrency(project.daily24hFees)}</td>
-                                <td className="px-3 py-2 text-right">{formatCurrency(project.revenue)}</td>
-                                <td className="px-3 py-2 text-right">
-                                  {formatCurrency(project.fdv)}
-                                  {project.estimated && (
-                                    <span className="ml-1 text-xs text-orange-600">*</span>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2 text-right">
-                                  {project.fdv && project.revenue 
-                                    ? `${(project.fdv / project.revenue).toFixed(1)}x`
-                                    : 'N/A'}
-                                </td>
-                                <td className="px-3 py-2 text-center">
-                                  <span className={`px-2 py-1 rounded text-xs ${
-                                    project.hasToken 
-                                      ? 'bg-green-100 text-green-800' 
-                                      : 'bg-yellow-100 text-yellow-800'
-                                  }`}>
-                                    {project.hasToken ? '✓ Live' : '⏳ Estimé'}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-3 rounded mb-6">
-                      Aucune donnée disponible. Cliquez sur "Actualiser" ou vérifiez les logs.
-                    </div>
-                  )}
-
-                  <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-                    <h3 className="font-semibold text-gray-800 mb-2">🚀 Architecture</h3>
-                    <ul className="text-sm text-gray-700 space-y-1">
-                      <li>• <strong>Vercel Edge Functions</strong> : API backend qui contourne CORS</li>
-                      <li>• <strong>DeFiLlama</strong> : Données de revenus en temps réel</li>
-                      <li>• <strong>CoinGecko</strong> : FDV des tokens live</li>
-                      <li>• <strong>Régression linéaire</strong> : Estimation automatique des FDV</li>
-                      <li>• <strong>Mise à jour</strong> : Automatique toutes les 24h + bouton manuel</li>
-                    </ul>
-                  </div>
-
-                  {debugInfo.length > 0 && (
-                    <details className="mt-6">
-                      <summary className="cursor-pointer text-sm font-semibold text-gray-700 hover:text-gray-900">
-                        🔍 Logs de debug ({debugInfo.length} lignes)
-                      </summary>
-                      <div className="mt-2 p-4 bg-gray-100 rounded text-xs font-mono overflow-x-auto max-h-96 overflow-y-auto">
-                        {debugInfo.map((log, i) => (
-                          <div key={i} className="mb-1">{log}</div>
-                        ))}
-                      </div>
-                    </details>
-                  )}
-                </>
-              )}
+              <div class="w-full bg-gray-200 rounded-full h-4">
+                <div class="bar bg-green-500 h-4 rounded-full" style="width: ${(project.revenue / maxValue * 100)}%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-600">FDV${project.estimated ? ' (estimée)' : ''}</span>
+                <span class="font-semibold ${project.estimated ? 'text-orange-600' : 'text-indigo-600'}">${formatCurrency(project.fdv)}</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-4">
+                <div class="bar ${project.estimated ? 'bg-orange-500' : 'bg-indigo-600'} h-4 rounded-full" style="width: ${(project.fdv / maxValue * 100)}%"></div>
+              </div>
+            </div>
+            <div class="text-sm text-gray-600 mt-1">
+              Ratio FDV/Revenu: ${project.fdv && project.revenue ? (project.fdv / project.revenue).toFixed(1) + 'x' : 'N/A'}
             </div>
           </div>
-        </div>
-      );
-    };
+        `;
+        
+        chartsDiv.appendChild(projectDiv);
+      });
+    }
 
-    const container = document.getElementById('root');
-    const root = ReactDOM.createRoot(container);
-    root.render(<CryptoFDVEstimator />);
+    function renderTable(projects) {
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+      
+      projects.forEach((project, index) => {
+        const row = document.createElement('tr');
+        row.className = index % 2 === 0 ? 'bg-gray-50' : 'bg-white';
+        
+        row.innerHTML = `
+          <td class="px-3 py-2 font-medium">${project.name}</td>
+          <td class="px-3 py-2 text-right">${formatCurrency(project.daily24hFees)}</td>
+          <td class="px-3 py-2 text-right">${formatCurrency(project.revenue)}</td>
+          <td class="px-3 py-2 text-right">${formatCurrency(project.fdv)}${project.estimated ? ' *' : ''}</td>
+          <td class="px-3 py-2 text-right">${project.fdv && project.revenue ? (project.fdv / project.revenue).toFixed(1) + 'x' : 'N/A'}</td>
+          <td class="px-3 py-2 text-center">
+            <span class="px-2 py-1 rounded text-xs ${project.hasToken ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+              ${project.hasToken ? '✓ Live' : '⏳ Estimé'}
+            </span>
+          </td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+    }
+
+    // Event listener
+    document.getElementById('refreshBtn').addEventListener('click', fetchData);
+    
+    // Charger au démarrage
+    fetchData();
   </script>
 </body>
 </html>
