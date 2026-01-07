@@ -44,6 +44,7 @@
               <tr class="bg-indigo-600 text-white">
                 <th class="px-3 py-2 text-left">Projet</th>
                 <th class="px-3 py-2 text-right">Fees 24h</th>
+                <th class="px-3 py-2 text-right">Moy. 7j</th>
                 <th class="px-3 py-2 text-right">Revenu Annuel</th>
                 <th class="px-3 py-2 text-right">FDV</th>
                 <th class="px-3 py-2 text-right">Ratio</th>
@@ -164,10 +165,18 @@
             }
             
             const feesData = await feesResponse.json();
-            addLog(`✅ Fees: $${feesData.total24h?.toLocaleString() || 0}`);
             
-            const dailyRevenue = feesData.total24h || 0;
-            const annualRevenue = dailyRevenue * 365;
+            // Calculer la moyenne sur 7 jours
+            const fees24h = feesData.total24h || 0;
+            const fees7d = feesData.total7d || 0;
+            const avgDailyRevenue = fees7d / 7;
+            const annualRevenue = avgDailyRevenue * 365;
+            
+            addLog(`✅ Fees 24h: ${fees24h.toLocaleString()}`);
+            addLog(`✅ Fees 7d: ${fees7d.toLocaleString()}`);
+            addLog(`✅ Moyenne quotidienne (7j): ${avgDailyRevenue.toLocaleString()}`);
+            
+            const dailyRevenue = avgDailyRevenue;
             
             let fdv = null;
             
@@ -188,7 +197,8 @@
               fdv: fdv,
               estimated: false,
               hasToken: project.hasToken,
-              daily24hFees: dailyRevenue
+              daily24hFees: fees24h,
+              avgDailyFees: avgDailyRevenue
             });
             
             addLog('---');
@@ -254,6 +264,9 @@
             </span>
           </div>
           <div class="space-y-2">
+            <div class="text-xs text-gray-500 mb-2">
+              Fees 24h: ${formatCurrency(project.daily24hFees)} | Moyenne 7j: ${formatCurrency(project.avgDailyFees)}
+            </div>
             <div>
               <div class="flex justify-between text-sm mb-1">
                 <span class="text-gray-600">Revenu Annuel</span>
@@ -293,6 +306,7 @@
         row.innerHTML = `
           <td class="px-3 py-2 font-medium">${project.name}</td>
           <td class="px-3 py-2 text-right">${formatCurrency(project.daily24hFees)}</td>
+          <td class="px-3 py-2 text-right font-semibold">${formatCurrency(project.avgDailyFees)}</td>
           <td class="px-3 py-2 text-right">${formatCurrency(project.revenue)}</td>
           <td class="px-3 py-2 text-right">${formatCurrency(project.fdv)}${project.estimated ? ' *' : ''}</td>
           <td class="px-3 py-2 text-right">${project.fdv && project.revenue ? (project.fdv / project.revenue).toFixed(1) + 'x' : 'N/A'}</td>
