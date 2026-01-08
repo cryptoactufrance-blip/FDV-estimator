@@ -338,6 +338,8 @@
           logo: p.logo
         }));
       
+      addLog(`📊 ${scatterData.length} points à afficher`);
+      
       const n = scatterData.length;
       if (n < 2) {
         console.warn('Pas assez de données pour la régression');
@@ -543,6 +545,8 @@
         },
         plugins: [ChartDataLabels]
       });
+      
+      addLog('✅ Graphique créé avec succès!');
     }
 
     function sortTable(column) {
