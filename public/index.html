@@ -263,7 +263,8 @@
               estimated: false,
               hasToken: project.hasToken,
               daily24hFees: fees24h,
-              avgDailyFees: avgDailyRevenue
+              avgDailyFees: avgDailyRevenue,
+              logo: feesData.logo || null
             });
             
             addLog('---');
@@ -313,7 +314,7 @@
       }
     }
 
-    function createScatterChart(projects) {
+    async function createScatterChart(projects) {
       const ctx = document.getElementById('scatterChart');
       
       if (scatterChartInstance) {
@@ -326,7 +327,8 @@
           x: p.revenue,
           y: p.fdv,
           label: p.name,
-          estimated: p.estimated
+          estimated: p.estimated,
+          logo: p.logo
         }));
       
       const n = scatterData.length;
@@ -366,20 +368,32 @@
               data: scatterData.filter(p => !p.estimated),
               backgroundColor: '#4f46e5',
               borderColor: '#4f46e5',
-              pointRadius: 8,
-              pointHoverRadius: 12,
+              pointRadius: 12,
+              pointHoverRadius: 14,
               pointHitRadius: 12,
-              pointStyle: 'circle'
+              pointStyle: function(context) {
+                const point = context.raw;
+                if (point && point.logo && logoImages[point.label]) {
+                  return logoImages[point.label];
+                }
+                return 'circle';
+              }
             },
             {
               label: 'Projets estimés',
               data: scatterData.filter(p => p.estimated),
               backgroundColor: '#f59e0b',
               borderColor: '#f59e0b',
-              pointRadius: 8,
-              pointHoverRadius: 12,
+              pointRadius: 12,
+              pointHoverRadius: 14,
               pointHitRadius: 12,
-              pointStyle: 'circle'
+              pointStyle: function(context) {
+                const point = context.raw;
+                if (point && point.logo && logoImages[point.label]) {
+                  return logoImages[point.label];
+                }
+                return 'circle';
+              }
             },
             {
               label: 'Droite de régression (moyenne)',
