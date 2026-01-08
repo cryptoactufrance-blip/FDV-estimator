@@ -368,6 +368,7 @@
               borderColor: '#4f46e5',
               pointRadius: 8,
               pointHoverRadius: 12,
+              pointHitRadius: 16,
               pointStyle: 'circle'
             },
             {
@@ -377,6 +378,7 @@
               borderColor: '#f59e0b',
               pointRadius: 8,
               pointHoverRadius: 12,
+              pointHitRadius: 16,
               pointStyle: 'circle'
             },
             {
@@ -399,44 +401,8 @@
           responsive: true,
           maintainAspectRatio: true,
           interaction: {
-            mode: 'nearest',
-            intersect: false,
-            axis: 'xy'
-          },
-          onHover: (event, activeElements, chart) => {
-            const canvasPosition = Chart.helpers.getRelativePosition(event, chart);
-            
-            let closestPoint = null;
-            let minDistance = 30; // Rayon de 30px
-            
-            chart.data.datasets.forEach((dataset, datasetIndex) => {
-              if (datasetIndex === 2) return; // Ignorer la droite de régression
-              
-              dataset.data.forEach((point, index) => {
-                const pointX = chart.scales.x.getPixelForValue(point.x);
-                const pointY = chart.scales.y.getPixelForValue(point.y);
-                
-                const distance = Math.sqrt(
-                  Math.pow(canvasPosition.x - pointX, 2) + 
-                  Math.pow(canvasPosition.y - pointY, 2)
-                );
-                
-                if (distance < minDistance) {
-                  minDistance = distance;
-                  closestPoint = { datasetIndex, index };
-                }
-              });
-            });
-            
-            if (closestPoint) {
-              chart.tooltip.setActiveElements([{
-                datasetIndex: closestPoint.datasetIndex,
-                index: closestPoint.index
-              }], { x: canvasPosition.x, y: canvasPosition.y });
-            } else {
-              chart.tooltip.setActiveElements([], { x: 0, y: 0 });
-            }
-            chart.update('none');
+            mode: 'point',
+            intersect: true
           },
           plugins: {
             legend: {
@@ -456,7 +422,7 @@
             tooltip: {
               enabled: true,
               mode: 'point',
-              intersect: false,
+              intersect: true,
               filter: function(tooltipItem) {
                 return tooltipItem.datasetIndex !== 2;
               },
