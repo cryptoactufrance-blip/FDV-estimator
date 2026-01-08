@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
   <style>
     .bar {
       transition: width 0.5s ease;
@@ -79,7 +80,7 @@
             <li>• Vercel Edge Functions : API backend qui contourne CORS</li>
             <li>• DeFiLlama : Données de revenus en temps réel (moyenne 7 jours)</li>
             <li>• CoinGecko : FDV des tokens live</li>
-            <li>• Régression linéaire pondérée : Estimation basée sur les gros projets</li>
+            <li>• Régression linéaire : Estimation automatique des FDV</li>
             <li>• Échelle logarithmique : Meilleure visualisation des différents ordres de grandeur</li>
           </ul>
         </div>
@@ -277,13 +278,10 @@
           const ratios = projectsWithFDV.map(p => p.fdv / p.revenue);
           const avgRatio = ratios.reduce((a, b) => a + b, 0) / ratios.length;
           
-          addLog(`📈 Ratio moyen FDV/Revenu: ${avgRatio.toFixed(2)}x`);
-          
           projects.forEach(project => {
-            if ((project.fdv === null || project.fdv === 0) && project.revenue > 0) {
+            if (project.fdv === null && project.revenue > 0) {
               project.fdv = project.revenue * avgRatio;
               project.estimated = true;
-              addLog(`🔮 FDV estimée pour ${project.name}: ${formatCurrency(project.fdv)}`);
             }
           });
         }
@@ -318,27 +316,12 @@
     function createScatterChart(projects) {
       const ctx = document.getElementById('scatterChart');
       
-      if (!ctx) {
-        addLog('❌ Canvas introuvable');
-        return;
-      }
-      
-      addLog('🎨 Création du graphique...');
-      
       if (scatterChartInstance) {
         scatterChartInstance.destroy();
       }
       
       const scatterData = projects
-        .filter(p => {
-          const valid = p.fdv !== null && p.fdv !== undefined && 
-                       p.revenue !== null && p.revenue !== undefined &&
-                       p.fdv > 0 && p.revenue > 0;
-          if (!valid && p.name) {
-            addLog(`⚠️ ${p.name} exclu (revenus ou FDV nuls)`);
-          }
-          return valid;
-        })
+        .filter(p => p.fdv !== null && p.fdv !== undefined && p.revenue !== null && p.revenue !== undefined)
         .map(p => ({
           x: p.revenue,
           y: p.fdv,
@@ -346,30 +329,26 @@
           estimated: p.estimated
         }));
       
-      addLog(`📊 ${scatterData.length} points affichés`);
-      
-      if (scatterData.length < 2) {
-        addLog('⚠️ Pas assez de données pour le graphique');
+      const n = scatterData.length;
+      if (n < 2) {
+        console.warn('Pas assez de données pour la régression');
         return;
       }
       
-      // Régression linéaire pondérée
-      const weights = scatterData.map(p => p.x);
-      const sumWeights = weights.reduce((sum, w) => sum + w, 0);
-      const normalizedWeights = weights.map(w => w / sumWeights);
+      const sumX = scatterData.reduce((sum, point) => sum + point.x, 0);
+      const sumY = scatterData.reduce((sum, point) => sum + point.y, 0);
+      const sumXY = scatterData.reduce((sum, point) => sum + point.x * point.y, 0);
+      const sumX2 = scatterData.reduce((sum, point) => sum + point.x * point.x, 0);
       
-      const sumWX = scatterData.reduce((sum, point, i) => sum + normalizedWeights[i] * point.x, 0);
-      const sumWY = scatterData.reduce((sum, point, i) => sum + normalizedWeights[i] * point.y, 0);
-      const sumWXY = scatterData.reduce((sum, point, i) => sum + normalizedWeights[i] * point.x * point.y, 0);
-      const sumWX2 = scatterData.reduce((sum, point, i) => sum + normalizedWeights[i] * point.x * point.x, 0);
-      
-      const slope = (sumWXY - sumWX * sumWY) / (sumWX2 - sumWX * sumWX);
-      const intercept = sumWY - slope * sumWX;
+      const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+      const intercept = (sumY - slope * sumX) / n;
       
       const allX = scatterData.map(p => p.x);
+      const allY = scatterData.map(p => p.y);
       const minX = Math.min(...allX);
       const maxX = Math.max(...allX);
       
+      // Pour l'échelle log, on étend légèrement sans aller trop loin
       const extendedMinX = minX * 0.5;
       const extendedMaxX = maxX * 2;
       
@@ -386,10 +365,9 @@
               label: 'Projets avec token',
               data: scatterData.filter(p => !p.estimated),
               backgroundColor: '#4f46e5',
-              borderColor: '#ffffff',
-              borderWidth: 2,
-              pointRadius: 10,
-              pointHoverRadius: 14,
+              borderColor: '#4f46e5',
+              pointRadius: 8,
+              pointHoverRadius: 12,
               pointHitRadius: 12,
               pointStyle: 'circle'
             },
@@ -397,10 +375,9 @@
               label: 'Projets estimés',
               data: scatterData.filter(p => p.estimated),
               backgroundColor: '#f59e0b',
-              borderColor: '#ffffff',
-              borderWidth: 2,
-              pointRadius: 10,
-              pointHoverRadius: 14,
+              borderColor: '#f59e0b',
+              pointRadius: 8,
+              pointHoverRadius: 12,
               pointHitRadius: 12,
               pointStyle: 'circle'
             },
@@ -415,6 +392,7 @@
               pointRadius: 0,
               pointHoverRadius: 0,
               hitRadius: 0,
+              hoverBorderWidth: 0,
               tension: 0
             }
           ]
@@ -433,7 +411,12 @@
               labels: {
                 usePointStyle: true,
                 padding: 15,
-                font: { size: 12 }
+                font: {
+                  size: 12
+                },
+                filter: function(item, chart) {
+                  return item.datasetIndex !== 2 || item.text !== '';
+                }
               }
             },
             tooltip: {
@@ -445,6 +428,7 @@
               },
               callbacks: {
                 title: function(context) {
+                  if (context.length === 0) return '';
                   return context[0].raw.label || '';
                 },
                 label: function(context) {
@@ -468,7 +452,7 @@
                 weight: 'bold',
                 size: 11
               },
-              formatter: function(value) {
+              formatter: function(value, context) {
                 return value.label;
               },
               color: function(context) {
@@ -483,10 +467,14 @@
               title: {
                 display: true,
                 text: 'Revenu Annuel (USD) - Échelle Log',
-                font: { size: 14, weight: 'bold' }
+                font: {
+                  size: 14,
+                  weight: 'bold'
+                }
               },
               ticks: {
-                callback: function(value) {
+                callback: function(value, index, ticks) {
+                  // N'afficher que 1, 5, 10, 50, 100, 500, 1000, etc.
                   const log = Math.log10(value);
                   const base = Math.pow(10, Math.floor(log));
                   const mantissa = value / base;
@@ -497,17 +485,24 @@
                   return '';
                 }
               },
-              grid: { display: true }
+              grid: {
+                display: true,
+                drawBorder: true
+              }
             },
             y: {
               type: 'logarithmic',
               title: {
                 display: true,
                 text: 'FDV (USD) - Échelle Log',
-                font: { size: 14, weight: 'bold' }
+                font: {
+                  size: 14,
+                  weight: 'bold'
+                }
               },
               ticks: {
-                callback: function(value) {
+                callback: function(value, index, ticks) {
+                  // N'afficher que 1, 5, 10, 50, 100, 500, 1000, etc.
                   const log = Math.log10(value);
                   const base = Math.pow(10, Math.floor(log));
                   const mantissa = value / base;
@@ -518,14 +513,15 @@
                   return '';
                 }
               },
-              grid: { display: true }
+              grid: {
+                display: true,
+                drawBorder: true
+              }
             }
           }
         },
         plugins: [ChartDataLabels]
       });
-      
-      addLog('✅ Graphique créé!');
     }
 
     function sortTable(column) {
@@ -546,6 +542,11 @@
             return currentSort.direction === 'asc' 
               ? valA.localeCompare(valB)
               : valB.localeCompare(valA);
+          
+          case 'daily24hFees':
+            valA = a.daily24hFees || 0;
+            valB = b.daily24hFees || 0;
+            break;
           
           case 'avgDailyFees':
             valA = a.avgDailyFees || 0;
