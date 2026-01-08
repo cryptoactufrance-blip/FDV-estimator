@@ -12,12 +12,6 @@
     .bar {
       transition: width 0.5s ease;
     }
-    #scatterChart {
-      cursor: grab;
-    }
-    #scatterChart:active {
-      cursor: grabbing;
-    }
   </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
@@ -43,19 +37,11 @@
       </div>
       
       <div id="content" class="hidden">
-        <div class="mb-4 flex justify-between items-center">
-          <h2 class="text-xl font-bold text-gray-800">Graphique FDV vs Revenu</h2>
-          <button 
-            id="resetZoom" 
-            class="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-          >
-            🔍 Réinitialiser le zoom
-          </button>
-        </div>
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Graphique FDV vs Revenu (Échelle Log)</h2>
         <div class="mb-8 bg-gray-50 p-4 rounded-lg">
           <canvas id="scatterChart" style="max-height: 500px;"></canvas>
           <p class="text-xs text-gray-600 mt-2 text-center">
-            💡 Molette : zoomer | Cliquer-glisser : déplacer la vue
+            💡 Survolez les points pour voir les détails
           </p>
         </div>
         
@@ -95,7 +81,7 @@
             <li>• DeFiLlama : Données de revenus en temps réel (moyenne 7 jours)</li>
             <li>• CoinGecko : FDV des tokens live</li>
             <li>• Régression linéaire : Estimation automatique des FDV</li>
-            <li>• Graphique interactif : Zoom (molette) et navigation (clic-glisser)</li>
+            <li>• Échelle logarithmique : Meilleure visualisation des différents ordres de grandeur</li>
           </ul>
         </div>
       </div>
@@ -359,12 +345,12 @@
       
       const allX = scatterData.map(p => p.x);
       const allY = scatterData.map(p => p.y);
-      const minX = Math.min(...allX, 0);
+      const minX = Math.min(...allX);
       const maxX = Math.max(...allX);
       
-      const xRange = maxX - minX;
-      const extendedMinX = minX - xRange * 0.1;
-      const extendedMaxX = maxX + xRange * 0.1;
+      // Pour l'échelle log, on étend légèrement sans aller trop loin
+      const extendedMinX = minX * 0.5;
+      const extendedMaxX = maxX * 2;
       
       const regressionLine = [
         { x: extendedMinX, y: slope * extendedMinX + intercept },
@@ -414,8 +400,45 @@
           maintainAspectRatio: true,
           interaction: {
             mode: 'nearest',
-            intersect: true,
+            intersect: false,
             axis: 'xy'
+          },
+          onHover: (event, activeElements, chart) => {
+            const canvasPosition = Chart.helpers.getRelativePosition(event, chart);
+            const dataX = chart.scales.x.getValueForPixel(canvasPosition.x);
+            const dataY = chart.scales.y.getValueForPixel(canvasPosition.y);
+            
+            let closestPoint = null;
+            let minDistance = 30; // Rayon de 30px
+            
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+              if (datasetIndex === 2) return; // Ignorer la droite de régression
+              
+              dataset.data.forEach((point, index) => {
+                const pointX = chart.scales.x.getPixelForValue(point.x);
+                const pointY = chart.scales.y.getPixelForValue(point.y);
+                
+                const distance = Math.sqrt(
+                  Math.pow(canvasPosition.x - pointX, 2) + 
+                  Math.pow(canvasPosition.y - pointY, 2)
+                );
+                
+                if (distance < minDistance) {
+                  minDistance = distance;
+                  closestPoint = { datasetIndex, index };
+                }
+              });
+            });
+            
+            if (closestPoint) {
+              chart.setActiveElements([{
+                datasetIndex: closestPoint.datasetIndex,
+                index: closestPoint.index
+              }]);
+            } else {
+              chart.setActiveElements([]);
+            }
+            chart.update('none');
           },
           plugins: {
             legend: {
@@ -434,9 +457,8 @@
             },
             tooltip: {
               enabled: true,
-              mode: 'nearest',
-              intersect: true,
-              axis: 'xy',
+              mode: 'point',
+              intersect: false,
               filter: function(tooltipItem) {
                 return tooltipItem.datasetIndex !== 2;
               },
@@ -453,34 +475,7 @@
                     `FDV: ${formatCurrency(y)}`,
                     `Ratio: ${x !== 0 ? (y/x).toFixed(1) + 'x' : 'N/A'}`
                   ];
-                },
-                afterLabel: function() {
-                  return '';
                 }
-              },
-              itemSort: function() {
-                return 0;
-              }
-            },
-            zoom: {
-              zoom: {
-                wheel: {
-                  enabled: true,
-                  speed: 0.1
-                },
-                pinch: {
-                  enabled: true
-                },
-                mode: 'xy'
-              },
-              pan: {
-                enabled: true,
-                mode: 'xy',
-                modifierKey: null
-              },
-              limits: {
-                x: { min: 'original', max: 'original' },
-                y: { min: 'original', max: 'original' }
               }
             },
             datalabels: {
@@ -649,12 +644,6 @@
     }
 
     document.getElementById('refreshBtn').addEventListener('click', fetchData);
-    
-    document.getElementById('resetZoom').addEventListener('click', function() {
-      if (scatterChartInstance) {
-        scatterChartInstance.resetZoom();
-      }
-    });
     
     fetchData();
   </script>
