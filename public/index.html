@@ -413,8 +413,9 @@
           responsive: true,
           maintainAspectRatio: true,
           interaction: {
-            mode: 'point',
-            intersect: true
+            mode: 'nearest',
+            intersect: true,
+            axis: 'xy'
           },
           plugins: {
             legend: {
@@ -433,13 +434,15 @@
             },
             tooltip: {
               enabled: true,
-              mode: 'point',
+              mode: 'nearest',
               intersect: true,
+              axis: 'xy',
               filter: function(tooltipItem) {
                 return tooltipItem.datasetIndex !== 2;
               },
               callbacks: {
                 title: function(context) {
+                  if (context.length === 0) return '';
                   return context[0].raw.label || '';
                 },
                 label: function(context) {
@@ -450,7 +453,13 @@
                     `FDV: ${formatCurrency(y)}`,
                     `Ratio: ${x !== 0 ? (y/x).toFixed(1) + 'x' : 'N/A'}`
                   ];
+                },
+                afterLabel: function() {
+                  return '';
                 }
+              },
+              itemSort: function() {
+                return 0;
               }
             },
             zoom: {
