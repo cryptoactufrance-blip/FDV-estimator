@@ -234,6 +234,13 @@
             
             const feesData = await feesResponse.json();
             
+            addLog(`✅ Données reçues`);
+            if (feesData.logo) {
+              addLog(`✅ Logo trouvé: ${feesData.logo}`);
+            } else {
+              addLog(`⚠️ Pas de logo dans les données`);
+            }
+            
             const fees24h = feesData.total24h || 0;
             const fees7d = feesData.total7d || 0;
             const avgDailyRevenue = fees7d / 7;
