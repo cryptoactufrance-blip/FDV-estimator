@@ -1,5 +1,6 @@
 // api/fees.js
 export default async function handler(req, res) {
+  // Autoriser les requêtes CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -15,6 +16,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Appeler DeFiLlama depuis le serveur (pas de problème CORS ici)
     const feesResponse = await fetch(
       `https://api.llama.fi/summary/fees/${protocol}?dataType=dailyFees`
     );
@@ -32,8 +34,7 @@ export default async function handler(req, res) {
       total24h: feesData.total24h || 0,
       total7d: feesData.total7d || 0,
       total30d: feesData.total30d || 0,
-      totalAllTime: feesData.totalAllTime || 0,
-      logo: feesData.logo || null  // 👈 AJOUT DU LOGO
+      totalAllTime: feesData.totalAllTime || 0
     });
   } catch (error) {
     return res.status(500).json({ 
