@@ -286,10 +286,13 @@
           const ratios = projectsWithFDV.map(p => p.fdv / p.revenue);
           const avgRatio = ratios.reduce((a, b) => a + b, 0) / ratios.length;
           
+          addLog(`📈 Ratio moyen FDV/Revenu: ${avgRatio.toFixed(2)}x`);
+          
           projects.forEach(project => {
-            if (project.fdv === null && project.revenue > 0) {
+            if ((project.fdv === null || project.fdv === 0) && project.revenue > 0) {
               project.fdv = project.revenue * avgRatio;
               project.estimated = true;
+              addLog(`🔮 FDV estimée pour ${project.name}: ${formatCurrency(project.fdv)}`);
             }
           });
         }
