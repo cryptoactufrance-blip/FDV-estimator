@@ -503,11 +503,11 @@
           },
           scales: {
             x: {
-              type: 'linear',
+              type: 'logarithmic',
               position: 'bottom',
               title: {
                 display: true,
-                text: 'Revenu Annuel (USD)',
+                text: 'Revenu Annuel (USD) - Échelle Log',
                 font: {
                   size: 14,
                   weight: 'bold'
@@ -521,14 +521,13 @@
               grid: {
                 display: true,
                 drawBorder: true
-              },
-              beginAtZero: true
+              }
             },
             y: {
-              type: 'linear',
+              type: 'logarithmic',
               title: {
                 display: true,
-                text: 'FDV (USD)',
+                text: 'FDV (USD) - Échelle Log',
                 font: {
                   size: 14,
                   weight: 'bold'
@@ -542,8 +541,7 @@
               grid: {
                 display: true,
                 drawBorder: true
-              },
-              beginAtZero: true
+              }
             }
           }
         },
