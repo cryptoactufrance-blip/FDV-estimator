@@ -405,8 +405,6 @@
           },
           onHover: (event, activeElements, chart) => {
             const canvasPosition = Chart.helpers.getRelativePosition(event, chart);
-            const dataX = chart.scales.x.getValueForPixel(canvasPosition.x);
-            const dataY = chart.scales.y.getValueForPixel(canvasPosition.y);
             
             let closestPoint = null;
             let minDistance = 30; // Rayon de 30px
@@ -431,12 +429,12 @@
             });
             
             if (closestPoint) {
-              chart.setActiveElements([{
+              chart.tooltip.setActiveElements([{
                 datasetIndex: closestPoint.datasetIndex,
                 index: closestPoint.index
-              }]);
+              }], { x: canvasPosition.x, y: canvasPosition.y });
             } else {
-              chart.setActiveElements([]);
+              chart.tooltip.setActiveElements([], { x: 0, y: 0 });
             }
             chart.update('none');
           },
@@ -509,8 +507,16 @@
                 }
               },
               ticks: {
-                callback: function(value) {
-                  return formatCurrency(value);
+                callback: function(value, index, ticks) {
+                  // N'afficher que 1, 5, 10, 50, 100, 500, 1000, etc.
+                  const log = Math.log10(value);
+                  const base = Math.pow(10, Math.floor(log));
+                  const mantissa = value / base;
+                  
+                  if (mantissa === 1 || mantissa === 5) {
+                    return formatCurrency(value);
+                  }
+                  return '';
                 }
               },
               grid: {
@@ -529,8 +535,16 @@
                 }
               },
               ticks: {
-                callback: function(value) {
-                  return formatCurrency(value);
+                callback: function(value, index, ticks) {
+                  // N'afficher que 1, 5, 10, 50, 100, 500, 1000, etc.
+                  const log = Math.log10(value);
+                  const base = Math.pow(10, Math.floor(log));
+                  const mantissa = value / base;
+                  
+                  if (mantissa === 1 || mantissa === 5) {
+                    return formatCurrency(value);
+                  }
+                  return '';
                 }
               },
               grid: {
